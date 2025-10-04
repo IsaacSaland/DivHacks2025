@@ -1,7 +1,0 @@
-{
-  "name": "RecipAI",
-  "integrations": {
-    "capacitor": {}
-  },
-  "type": "react-vite"
-}
