@@ -173,11 +173,15 @@ const Scanner: React.FC = () => {
                   <IonCol size="6" sizeMd="4" key={idx} className="thumb-col">
                     <div className="thumb-card">
                       <IonImg src={p} alt={`photo-${idx}`} />
-                      <div className="thumb-actions">
-                        <IonButton size="small" onClick={() => removePhoto(idx)} color="danger">
-                          Delete
-                        </IonButton>
-                      </div>
+                      {/* overlay delete button in top-right */}
+                      <button
+                        className="delete-btn"
+                        onClick={() => removePhoto(idx)}
+                        aria-label={`Delete photo ${idx}`}
+                        title="Delete photo"
+                      >
+                        ×
+                      </button>
                     </div>
                   </IonCol>
                 ))}
