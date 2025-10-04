@@ -10,9 +10,9 @@ import {
   setupIonicReact
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
-import { ellipse, square, triangle, camera, leaf, fastFood } from 'ionicons/icons';
+import { camera, leaf, fastFood } from 'ionicons/icons';
 import Scanner from './pages/Tab1';
-import Tab2 from './pages/Tab2';
+import Menu from './pages/Tab2';
 import Tab3 from './pages/Tab3';
 
 /* Core CSS required for Ionic components to work properly */
@@ -56,7 +56,7 @@ const App: React.FC = () => (
             <Scanner />
           </Route>
           <Route exact path="/tab2">
-            <Tab2 />
+            <Menu />
           </Route>
           <Route path="/tab3">
             <Tab3 />
@@ -72,7 +72,7 @@ const App: React.FC = () => (
           </IonTabButton>
           <IonTabButton tab="tab2" href="/tab2">
             <IonIcon aria-hidden="true" icon={fastFood} />
-            <IonLabel>Plan</IonLabel>
+            <IonLabel>Menu</IonLabel>
           </IonTabButton>
           <IonTabButton tab="tab3" href="/tab3">
             <IonIcon aria-hidden="true" icon={leaf} />
