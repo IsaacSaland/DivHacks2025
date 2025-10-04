@@ -1,0 +1,7 @@
+{
+  "name": "snap-chef",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "react-vite"
+}
