@@ -52,31 +52,24 @@ const App: React.FC = () => (
     <IonReactRouter>
       <IonTabs>
         <IonRouterOutlet>
-          <Route exact path="/tab1">
+          <Route exact path="/scan">
             <Scanner />
           </Route>
-          <Route exact path="/tab2">
+          <Route exact path="/menu">
             <Menu />
           </Route>
-          <Route path="/tab3">
-            <Tab3 />
-          </Route>
           <Route exact path="/">
-            <Redirect to="/tab1" />
+            <Redirect to="/scan" />
           </Route>
         </IonRouterOutlet>
         <IonTabBar slot="bottom">
-          <IonTabButton tab="tab1" href="/tab1">
+          <IonTabButton tab="scan" href="/scan">
             <IonIcon aria-hidden="true" icon={camera} />
             <IonLabel>Scan</IonLabel>
           </IonTabButton>
-          <IonTabButton tab="tab2" href="/tab2">
-            <IonIcon aria-hidden="true" icon={fastFood} />
-            <IonLabel>Menu</IonLabel>
-          </IonTabButton>
-          <IonTabButton tab="tab3" href="/tab3">
+          <IonTabButton tab="menu" href="/menu">
             <IonIcon aria-hidden="true" icon={leaf} />
-            <IonLabel>Compost</IonLabel>
+            <IonLabel>Menu</IonLabel>
           </IonTabButton>
         </IonTabBar>
       </IonTabs>

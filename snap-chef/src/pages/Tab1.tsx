@@ -327,7 +327,7 @@ const Scanner: React.FC = () => {
       if (!merged[k]) merged[k] = FORGIVABLE_TYPES[k];
     });
     await saveFridgeMap(merged);
-    (router as any).push?.('/tab2', 'forward') ?? router.push('/tab2');
+    (router as any).push?.('/menu', 'forward') ?? router.push('/menu');
   };
 
   const isForgivable = (name: string) => FORGIVABLE.includes(NORM(name));
@@ -404,7 +404,7 @@ const Scanner: React.FC = () => {
                 ))}
                 {photos.length === 0 && (
                   <IonCol>
-                    <IonLabel>Upload a few clear photos of your fridge or items (packaging text helps a lot!).</IonLabel>
+                    <IonLabel>Upload a few clear photos of your fridge's contents.</IonLabel>
                   </IonCol>
                 )}
               </IonRow>
