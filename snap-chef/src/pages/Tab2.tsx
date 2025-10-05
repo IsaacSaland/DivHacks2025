@@ -131,9 +131,7 @@ const Menu: React.FC = () => {
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'var(--ion-color-medium)' }}>
             <IonIcon icon={informationCircleOutline} />
             <small>
-              Default is <b>Optional</b>. Click to cycle: Optional → Must → Exclude → Optional.  
-              Strict matches (no “garlic” = “garlic powder”; no “chicken” = “chicken broth/stock”).  
-              Missing items are allowed but ranked last. No substitutions.
+              Click to cycle: Optional → Must → Exclude → Optional
             </small>
           </div>
         </div>
@@ -146,7 +144,6 @@ const Menu: React.FC = () => {
           <IonList>
             {rows.map((r) => (
               <IonItem key={r.id} button detail onClick={() => openDetail(r.id)}>
-                <IonAvatar slot="start"><img alt="" src="https://via.placeholder.com/80x80?text=🍽️" /></IonAvatar>
                 <IonLabel>
                   <h2>{r.name || `Recipe #${r.id}`}</h2>
                   <p>
