@@ -1,307 +1,191 @@
-import React, {useEffect, useMemo, useState} from 'react';
-import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonList, IonItem, IonLabel, IonAvatar, IonButtons, IonButton, IonIcon, IonChip, IonBadge, IonSearchbar, IonSpinner, IonModal} from '@ionic/react';
-import {refreshOutline, informationCircleOutline, closeOutline} from 'ionicons/icons';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  IonContent, IonHeader, IonPage, IonTitle, IonToolbar,
+  IonList, IonItem, IonLabel, IonAvatar, IonChip, IonBadge,
+  IonSpinner, IonModal, IonIcon, IonButtons, IonButton
+} from '@ionic/react';
+import { informationCircleOutline, closeOutline } from 'ionicons/icons';
 import './Tab2.css';
 
-// config stuff
-const MEALDB_BASE = 'https://www.themealdb.com/api/json/v1/1';
-const filterByIng = (ing: string) => `${MEALDB_BASE}/filter.php?i=${encodeURIComponent(ing)}`;
-const lookupById = (id: string) => `${MEALDB_BASE}/lookup.php?i=${encodeURIComponent(id)}`;
+const API_BASE = 'http://localhost:5050';
 
-const MUST_THRESHOLD = 4;
+type TriState = 'opt' | 'must' | 'exc';
+type SortMode = 'match' | 'time_asc' | 'time_desc';
 
-// ingredient stuff
-const INITIAL_INGREDIENTS: Record<string, number> = {
-  chicken: 3,
-  garlic: 3,
-  milk: 3,
-  fish: 3,
+type SearchRow = {
+  id: number; name: string; minutes: number | null;
+  must_matched: number; opt_matched: number; subs_matched: number;
+  missing_penalty: number;
+};
+type RecipeDetail = {
+  id: number; name: string; minutes: number | null; description: string | null;
+  steps: string[]; ingredients: string[]; tags: string[];
 };
 
-// allow exclusion of most condiments and stuff
-const FORGIVABLE = new Set<string>([
-  'salt','pepper','olive oil','vegetable oil','butter','sugar','garlic','onion','paprika',
-  'chili powder','cumin','oregano','basil','thyme','vinegar','soy sauce','ketchup','mustard',
-  'mayonnaise','lemon','lime','water'
-]);
-
-// types
-type MealSummary = { idMeal: string; strMeal: string; strMealThumb?: string };
-type MealDetail = { idMeal: string; strMeal: string; strMealThumb?: string; strInstructions?: string; [k: string]: any };
-type ScoredMeal = {
-  summary: MealSummary;
-  missingPenalty: number;
-  matchedMust: number;
-  matchedOptional: number;
-};
-
-// helpers
 const normalize = (s?: string | null) => (s || '').toLowerCase().trim();
 
-function ingredientsFromDetail(meal: MealDetail): string[] {
-  const out: string[] = [];
-  for (let i = 1; i <= 20; i++) {
-    const ing = normalize(meal[`strIngredient${i}`]);
-    if (ing) out.push(ing);
-  }
-  return out;
-}
+const INCOMING_PANTRY_TYPES: Record<string, string> = {
+  chicken: 'protein', broccoli: 'vegetable', milk: 'dairy', fish: 'protein',
+  rice: 'grain', egg: 'protein', tomato: 'vegetable', cheese: 'dairy',
+  pasta: 'grain', beef: 'protein', potato: 'vegetable', yogurt: 'dairy',
+  bread: 'grain', carrot: 'vegetable', pork: 'protein', spinach: 'vegetable',
+  pecan: 'nut', almond: 'nut', walnut: 'nut', chocolate: 'sweet',
+  flour: 'baking', sugar: 'baking',
+};
 
-function measuresFromDetail(meal: MealDetail): Array<{ ingredient: string; measure: string }> {
-  const rows: Array<{ ingredient: string; measure: string }> = [];
-  for (let i = 1; i <= 20; i++) {
-    const ing = normalize(meal[`strIngredient${i}`]);
-    const meas = (meal[`strMeasure${i}`] || '').toString().trim();
-    if (ing) rows.push({ ingredient: ing, measure: meas });
-  }
-  return rows;
-}
+const Tab2: React.FC = () => {
+  const [pantryTypes] = useState<Record<string, string>>(
+    Object.fromEntries(Object.entries(INCOMING_PANTRY_TYPES).map(([k, v]) => [normalize(k), normalize(v)]))
+  );
 
-async function fetchMealsForIngredient(ing: string): Promise<MealSummary[]> {
-  const res = await fetch(filterByIng(ing));
-  const json = await res.json();
-  return (json?.meals || []) as MealSummary[];
-}
+  const [pantryState, setPantryState] = useState<Record<string, TriState>>(
+    Object.fromEntries(Object.keys(pantryTypes).map((name) => [name, 'opt']))
+  );
 
-async function fetchMealDetail(idMeal: string): Promise<MealDetail | null> {
-  const res = await fetch(lookupById(idMeal));
-  const json = await res.json();
-  return (json?.meals?.[0] as MealDetail) ?? null;
-}
-
-// page
-const Menu: React.FC = () => {
-  const [pantryMap] = useState<Record<string, number>>(INITIAL_INGREDIENTS); // replace with real state later
-  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<ScoredMeal[]>([]);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [selected, setSelected] = useState<MealDetail | null>(null);
+  const [rows, setRows] = useState<SearchRow[]>([]);
+  const [selected, setSelected] = useState<RecipeDetail | null>(null);
+  const [sort, setSort] = useState<SortMode>('match');
 
   const pantryList = useMemo(
-    () =>
-      Object.entries(pantryMap)
-        .map(([name, score]) => ({ name: name.toLowerCase(), score }))
-        .sort((a, b) => b.score - a.score),
-    [pantryMap]
+    () => Object.keys(pantryTypes).map((name) => ({ name, type: pantryTypes[name], state: pantryState[name] })),
+    [pantryTypes, pantryState]
   );
-  const filteredPantryList = useMemo(() => {
-    const q = search.toLowerCase().trim();
-    if (!q) return pantryList;
-    return pantryList.filter(p => p.name.includes(q));
-  }, [pantryList, search]);
 
-  const mustIngredients = useMemo(
-    () => pantryList.filter(p => p.score >= MUST_THRESHOLD).map(p => p.name),
-    [pantryList]
-  );
-  const optionalIngredients = useMemo(
-    () => pantryList.filter(p => p.score < MUST_THRESHOLD).map(p => p.name),
-    [pantryList]
-  );
+  const must = useMemo(() => pantryList.filter(p => p.state === 'must').map(p => p.name), [pantryList]);
+  const optional = useMemo(() => pantryList.filter(p => p.state === 'opt').map(p => p.name), [pantryList]);
+  const exclude = useMemo(() => pantryList.filter(p => p.state === 'exc').map(p => p.name), [pantryList]);
+
+  function onChipClick(name: string) {
+    setPantryState(prev => {
+      const cur = prev[name] || 'opt';
+      const next: TriState = cur === 'opt' ? 'must' : cur === 'must' ? 'exc' : 'opt';
+      return { ...prev, [name]: next };
+    });
+  }
+  function onToggleSort() {
+    setSort(prev => prev === 'match' ? 'time_asc' : prev === 'time_asc' ? 'time_desc' : 'match');
+  }
+
+  const deb = useRef<number | null>(null);
+  useEffect(() => {
+    if (deb.current) window.clearTimeout(deb.current);
+    deb.current = window.setTimeout(() => { runSearch(); }, 200);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pantryState, sort]);
+  useEffect(() => { runSearch(); }, []);
 
   async function runSearch() {
     setLoading(true);
-    setResults([]);
+    setRows([]);
     try {
-      const drivers = mustIngredients.length > 0 ? mustIngredients : pantryList.slice(0, 3).map(p => p.name);
-      if (drivers.length === 0) {
-        setResults([]);
-        return;
-      }
-
-      // Pull candidate lists for driver ingredients
-      const lists = await Promise.all(drivers.map(fetchMealsForIngredient));
-
-      // Intersect if we have MUSTs; otherwise take union
-      const counts: Record<string, number> = {};
-      const byId: Record<string, MealSummary> = {};
-      lists.forEach(list => list.forEach(m => {
-        counts[m.idMeal] = (counts[m.idMeal] || 0) + 1;
-        byId[m.idMeal] = m;
-      }));
-
-      let candidateIds: string[];
-      if (mustIngredients.length > 0) {
-        const need = lists.length;
-        candidateIds = Object.keys(counts).filter(id => counts[id] === need);
-      } else {
-        candidateIds = Object.keys(counts);
-      }
-
-      // Fetch details for scoring
-      const details = await Promise.all(candidateIds.map(fetchMealDetail));
-      const valid = details.filter(Boolean) as MealDetail[];
-
-      const pantryNames = new Set(pantryList.map(p => p.name));
-      const mustSet = new Set(mustIngredients);
-
-      const scored: ScoredMeal[] = valid.map(meal => {
-        const recipeIngs = ingredientsFromDetail(meal);
-        const recipeSet = new Set(recipeIngs);
-
-        // Hard requirement: recipe must include all MUST ingredients
-        const missingMust = mustIngredients.filter(m => !recipeSet.has(m));
-        if (missingMust.length) return null;
-
-        let missingPenalty = 0;
-        let matchedMust = 0;
-        let matchedOptional = 0;
-
-        for (const ing of recipeIngs) {
-          if (pantryNames.has(ing)) {
-            if (mustSet.has(ing)) matchedMust++;
-            else matchedOptional++;
-          } else if (!FORGIVABLE.has(ing)) {
-            missingPenalty++;
-          }
-        }
-
-        const summary = byId[meal.idMeal] || { idMeal: meal.idMeal, strMeal: meal.strMeal, strMealThumb: meal.strMealThumb };
-        return { summary, missingPenalty, matchedMust, matchedOptional };
-      }).filter(Boolean) as ScoredMeal[];
-
-      // Sort best-first
-      scored.sort((a, b) =>
-        a.missingPenalty !== b.missingPenalty ? a.missingPenalty - b.missingPenalty :
-        a.matchedMust !== b.matchedMust ? b.matchedMust - a.matchedMust :
-        a.matchedOptional !== b.matchedOptional ? b.matchedOptional - a.matchedOptional :
-        a.summary.strMeal.localeCompare(b.summary.strMeal)
-      );
-
-      setResults(scored);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+      const r = await fetch(`${API_BASE}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ must, optional, exclude, sort, limit: 50 })
+      });
+      const data: SearchRow[] = await r.json();
+      setRows(data);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   }
 
-  async function openDetail(mealId: string) {
-    setDetailOpen(true);
-    setSelected(null);
-    const d = await fetchMealDetail(mealId);
-    setSelected(d);
+  async function openDetail(id: number) {
+    try {
+      const r = await fetch(`${API_BASE}/recipe/${id}`);
+      const data: RecipeDetail = await r.json();
+      setSelected(data);
+    } catch (e) { console.error(e); }
   }
 
-  useEffect(() => {
-    runSearch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const sortLabel = sort === 'match' ? 'Sort: Match' : sort === 'time_asc' ? 'Time ↑' : 'Time ↓';
 
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>Menu</IonTitle>
-          <IonButtons slot="end">
-            <IonButton onClick={runSearch}>
-              <IonIcon icon={refreshOutline} slot="start" />
-              Refresh
-            </IonButton>
-          </IonButtons>
+          <IonTitle>Menu (Food.com)</IonTitle>
+          <IonButtons slot="end"><IonButton onClick={onToggleSort}>{sortLabel}</IonButton></IonButtons>
         </IonToolbar>
       </IonHeader>
 
       <IonContent fullscreen>
-        <IonHeader collapse="condense">
-          <IonToolbar>
-            <IonTitle size="large">Menu</IonTitle>
-          </IonToolbar>
-        </IonHeader>
+        <IonHeader collapse="condense"><IonToolbar><IonTitle size="large">Menu</IonTitle></IonToolbar></IonHeader>
 
-        {/* Pantry overview */}
         <div className="ion-padding" style={{ display: 'grid', gap: 8 }}>
-          <IonSearchbar
-            value={search}
-            debounce={150}
-            onIonInput={(e) => setSearch(String(e.detail.value || ''))}
-            placeholder="Filter pantry view (visual only)"
-          />
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {filteredPantryList.map(({ name, score }) => (
-              <IonChip key={name} outline={score < MUST_THRESHOLD} color={score >= MUST_THRESHOLD ? 'success' : 'medium'}>
-                {name}
-                <IonBadge color={score >= MUST_THRESHOLD ? 'success' : 'light'} style={{ marginLeft: 6 }}>
-                  {score}
-                </IonBadge>
-              </IonChip>
-            ))}
+            {pantryList.map(({ name, type, state }) => {
+              const color = state === 'must' ? 'success' : state === 'exc' ? 'danger' : 'warning';
+              const outline = state === 'opt';
+              const label = state === 'must' ? 'Must' : state === 'exc' ? 'Exclude' : 'Optional';
+              return (
+                <IonChip key={name} color={color as any} outline={outline} onClick={() => onChipClick(name)} style={{ userSelect: 'none' }}>
+                  {name}
+                  <IonBadge color={color as any} style={{ marginLeft: 6 }}>{label}</IonBadge>
+                  <IonBadge color="light" style={{ marginLeft: 6 }}>{type}</IonBadge>
+                </IonChip>
+              );
+            })}
           </div>
+
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'var(--ion-color-medium)' }}>
             <IonIcon icon={informationCircleOutline} />
             <small>
-              MUST ingredients are score ≥ {MUST_THRESHOLD}. Recipes must include all MUSTs. Missing condiments/spices are forgiven.
+              Default is <b>Optional</b>. Click to cycle: Optional → Must → Exclude → Optional.  
+              Strict matches (no “garlic” = “garlic powder”; no “chicken” = “chicken broth/stock”).  
+              Missing items are allowed but ranked last. No substitutions.
             </small>
           </div>
         </div>
 
-        {/* Results */}
         {loading ? (
           <div className="ion-padding" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <IonSpinner name="lines" /> Searching recipes…
           </div>
         ) : (
           <IonList>
-            {results.map((r) => (
-              <IonItem key={r.summary.idMeal} button detail onClick={() => openDetail(r.summary.idMeal)}>
-                <IonAvatar slot="start">
-                  {/* eslint-disable-next-line jsx-a11y/alt-text */}
-                  <img src={r.summary.strMealThumb || ''} />
-                </IonAvatar>
+            {rows.map((r) => (
+              <IonItem key={r.id} button detail onClick={() => openDetail(r.id)}>
+                <IonAvatar slot="start"><img alt="" src="https://via.placeholder.com/80x80?text=🍽️" /></IonAvatar>
                 <IonLabel>
-                  <h2>{r.summary.strMeal}</h2>
+                  <h2>{r.name || `Recipe #${r.id}`}</h2>
                   <p>
-                    Missing penalty: <b>{r.missingPenalty}</b> • MUST matched: <b>{r.matchedMust}</b> • Optional matched:{' '}
-                    <b>{r.matchedOptional}</b>
+                    {r.minutes ? `${r.minutes} min • ` : ''}Missing: <b>{r.missing_penalty}</b> •
+                    Must: <b>{r.must_matched}</b> • Optional: <b>{r.opt_matched}</b>
                   </p>
                 </IonLabel>
               </IonItem>
             ))}
-            {!loading && results.length === 0 && (
-              <div className="ion-padding">No matches — try adding more pantry items or lowering MUST threshold.</div>
+            {!loading && rows.length === 0 && (
+              <div className="ion-padding">No matches — try removing some <b>Exclude</b> items or reducing <b>Must</b>.</div>
             )}
           </IonList>
         )}
 
-        {/* Recipe details modal */}
-        <IonModal isOpen={detailOpen} onDidDismiss={() => setDetailOpen(false)}>
+        <IonModal isOpen={!!selected} onDidDismiss={() => setSelected(null)}>
           <IonHeader>
             <IonToolbar>
-              <IonTitle>{selected?.strMeal || 'Recipe'}</IonTitle>
-              <IonButtons slot="end">
-                <IonButton onClick={() => setDetailOpen(false)}>
-                  <IonIcon icon={closeOutline} slot="icon-only" />
-                </IonButton>
-              </IonButtons>
+              <IonTitle>{selected?.name || 'Recipe'}</IonTitle>
+              <div slot="end" style={{ paddingRight: 8 }}>
+                <IonIcon icon={closeOutline} onClick={() => setSelected(null)} style={{ fontSize: 22, cursor: 'pointer' }} />
+              </div>
             </IonToolbar>
           </IonHeader>
           <IonContent className="ion-padding">
             {!selected ? (
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <IonSpinner /> Loading…
-              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><IonSpinner /> Loading…</div>
             ) : (
               <>
-                {selected.strMealThumb && (
-                  // eslint-disable-next-line jsx-a11y/alt-text
-                  <img
-                    src={selected.strMealThumb}
-                    style={{ width: '100%', borderRadius: 12, marginBottom: 12, objectFit: 'cover', maxHeight: 260 }}
-                  />
-                )}
                 <h2>Ingredients</h2>
-                <ul>
-                  {measuresFromDetail(selected).map((row, i) => (
-                    <li key={i}>{row.measure ? `${row.measure} ` : ''}{row.ingredient}</li>
-                  ))}
-                </ul>
-                {selected.strInstructions && (
+                <ul>{selected.ingredients?.map((ing, i) => <li key={i}>{(ing || '').toString()}</li>)}</ul>
+                {selected.steps?.length ? (
                   <>
                     <h2 style={{ marginTop: 16 }}>Instructions</h2>
-                    <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{selected.strInstructions}</p>
+                    <ol style={{ lineHeight: 1.6 }}>
+                      {selected.steps.map((s, i) => <li key={i}>{s}</li>)}
+                    </ol>
                   </>
-                )}
+                ) : null}
               </>
             )}
           </IonContent>
@@ -311,4 +195,4 @@ const Menu: React.FC = () => {
   );
 };
 
-export default Menu;
+export default Tab2;

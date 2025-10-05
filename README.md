@@ -1,5 +1,17 @@
 # SnapChef
 
+## Build DB
+`cd ./DivHacks2025/recipe_db`
+
+`py ./buildDB.py`
+# → Creates recipe_db\foodcom.db
+
+## Start server
+`cd ./DivHacks2025/recipe_db`
+
+`node ./server.js`
+
+
 ## Run guide
 First `cd ./snap-chef`, then: 
 - dev server: `ionic serve`
