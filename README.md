@@ -5,6 +5,7 @@
 
 `py ./buildDB.py`
 # → Creates recipe_db\foodcom.db
+**NOTE: NECESSARY FILES NOT IN REPO, JUSE USE THE foodcom.db FILE UPLOADED**
 
 ## Start server
 `cd ./DivHacks2025/recipe_db`
