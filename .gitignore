@@ -1,5 +1,1 @@
-/recipe_db/*.csv
-/recipe_db/foodcom.db*
-/recipe_db/*.pkl
-/recipe_db/node_modules/
 .DS_Store

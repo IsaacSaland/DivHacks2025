@@ -1,0 +1,5 @@
+*.csv
+foodcom.db*
+*.pkl
+node_modules/
+.DS_Store
