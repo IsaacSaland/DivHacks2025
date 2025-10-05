@@ -1,5 +1,3 @@
-/recipe_db/RAW_recipes.csv
-/recipe_db/PP_recipes.csv
-/recipe_db/RAW_interactions.csv
-/recipe_db/foodcom.db
+/recipe_db/*.csv
+/recipe_db/*.db
 /recipe_db/*.pkl
