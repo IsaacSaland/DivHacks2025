@@ -5,6 +5,7 @@ import {
   IonSpinner, IonModal, IonIcon, IonButtons, IonButton
 } from '@ionic/react';
 import { informationCircleOutline, closeOutline } from 'ionicons/icons';
+import { loadFridgeMap } from '../lib/FridgeStore';
 import './Tab2.css';
 
 const API_BASE = 'http://localhost:5050';
@@ -34,9 +35,25 @@ const INCOMING_PANTRY_TYPES: Record<string, string> = {
 };
 
 const Menu: React.FC = () => {
-  const [pantryTypes] = useState<Record<string, string>>(
-    Object.fromEntries(Object.entries(INCOMING_PANTRY_TYPES).map(([k, v]) => [normalize(k), normalize(v)]))
-  );
+  const [pantryTypes, setPantryTypes] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    (async () => {
+      const map = await loadFridgeMap();
+      if (!map || Object.keys(map).length === 0) {
+        // fallback if user hasn’t scanned yet
+        setPantryTypes({
+          chicken: 'protein',
+          broccoli: 'vegetable',
+          milk: 'dairy',
+          rice: 'grain',
+          egg: 'protein',
+        });
+      } else {
+        setPantryTypes(map);
+      }
+    })();
+  }, []);
 
   const [pantryState, setPantryState] = useState<Record<string, TriState>>(
     Object.fromEntries(Object.keys(pantryTypes).map((name) => [name, 'opt']))
@@ -131,7 +148,8 @@ const Menu: React.FC = () => {
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'var(--ion-color-medium)' }}>
             <IonIcon icon={informationCircleOutline} />
             <small>
-              Click to cycle: Optional → Must → Exclude → Optional
+              Click to cycle: Optional → Must → Exclude → Optional<br></br>
+              You are assumed to have many basic ingredients (salt, sugar, flour, spices, etc.) on hand.
             </small>
           </div>
         </div>
