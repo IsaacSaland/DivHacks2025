@@ -1,0 +1,58 @@
+/* Styles for the Scanner thumbnails and overlay delete button */
+.scanner-container {
+	padding: 16px;
+}
+
+.thumbnails .thumb-col {
+	padding: 8px;
+}
+
+.thumb-card {
+	position: relative; /* needed for absolute overlay */
+	overflow: hidden;
+	border-radius: 8px;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+	background: #fff;
+}
+
+.thumb-card ion-img,
+.thumb-card img {
+	display: block;
+	width: 100%;
+	height: auto;
+	object-fit: cover;
+}
+
+.delete-btn {
+	position: absolute;
+	top: 6px;
+	right: 6px;
+	width: 30px;
+	height: 30px;
+	border-radius: 50%;
+	border: none;
+	background: #e74c3c; /* red */
+	color: #fff;
+	font-weight: 700;
+	font-size: 18px;
+	line-height: 28px;
+	text-align: center;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.delete-btn:hover,
+.delete-btn:focus {
+	transform: scale(1.05);
+	outline: none;
+}
+
+.scanner-error {
+	color: #c0392b;
+	margin: 8px 0;
+}
+
