@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   IonContent, IonHeader, IonPage, IonTitle, IonToolbar,
-  IonList, IonItem, IonLabel, IonAvatar, IonChip, IonBadge,
+  IonList, IonItem, IonLabel, IonChip, IonBadge,
   IonSpinner, IonModal, IonIcon, IonButtons, IonButton
 } from '@ionic/react';
 import { informationCircleOutline, closeOutline } from 'ionicons/icons';
@@ -147,9 +147,9 @@ const Menu: React.FC = () => {
               const outline = state === 'opt';
               const label = state === 'must' ? 'Must' : state === 'exc' ? 'Exclude' : 'Optional';
               return (
-                <IonChip key={name} color={color as any} outline={outline} onClick={() => onChipClick(name)} style={{ userSelect: 'none' }}>
+                <IonChip key={name} color={color} outline={outline} onClick={() => onChipClick(name)} style={{ userSelect: 'none' }}>
                   {name}
-                  <IonBadge color={color as any} style={{ marginLeft: 6 }}>{label}</IonBadge>
+                  <IonBadge color={color} style={{ marginLeft: 6 }}>{label}</IonBadge>
                   <IonBadge color="light" style={{ marginLeft: 6 }}>{type}</IonBadge>
                 </IonChip>
               );

@@ -16,9 +16,7 @@ export async function saveFridgeMap(map: FridgeMap) {
 export async function loadFridgeMap(): Promise<FridgeMap> {
   const res = await Preferences.get({ key: KEY });
   if (!res.value) return {};
-  try {
-    const parsed = JSON.parse(res.value);
-    if (parsed && typeof parsed === 'object') return parsed;
-  } catch {}
+  const parsed = JSON.parse(res.value);
+  if (parsed && typeof parsed === 'object') return parsed;
   return {};
 }
