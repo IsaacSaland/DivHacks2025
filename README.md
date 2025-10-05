@@ -3,9 +3,11 @@
 ## Build DB
 `cd ./DivHacks2025/recipe_db`
 
+Download [food.com dataset](https://www.kaggle.com/datasets/shuyangli94/food-com-recipes-and-user-interactions).
+
+
 `py ./buildDB.py`
 (Creates recipe_db\foodcom.db)
-**NOTE: NECESSARY FILES NOT IN REPO, JUSE USE THE foodcom.db FILE INCLUDED**
 
 ## Start server
 `cd ./DivHacks2025/recipe_db`
