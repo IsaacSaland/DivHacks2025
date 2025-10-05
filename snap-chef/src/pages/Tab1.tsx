@@ -10,13 +10,18 @@ import {
   IonRow,
   IonCol,
   IonImg,
-  IonLabel,
+  IonSpinner,
+  IonList,
+  IonItem,
+  IonInput,
+  IonSelect,
+  IonSelectOption,
+  IonText,
 } from '@ionic/react';
 import './Tab1.css';
 import { Capacitor } from '@capacitor/core';
-import { IngredientType, FridgeMap, saveFridgeMap } from '../lib/FridgeStore';
+import { IngredientType, FridgeMap, saveFridgeMap, loadFridgeMap } from '../lib/FridgeStore';
 import { aliasMatch } from '../lib/Aliases';
-
 import { useIonRouter } from '@ionic/react';
 
 const Scanner: React.FC = () => {
@@ -26,6 +31,12 @@ const Scanner: React.FC = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [detecting, setDetecting] = useState(false);
+  const [detected, setDetected] = useState<FridgeMap>({});
+  const [manualName, setManualName] = useState('');
+  const [manualType, setManualType] = useState<IngredientType>('other');
+
+  const router = useIonRouter();
 
   useEffect(() => {
     // cleanup on unmount
@@ -34,7 +45,7 @@ const Scanner: React.FC = () => {
 
   // Determine platform once (web | ios | android)
   const platform = Capacitor.getPlatform();
-  const router = useIonRouter();
+  
 
   const startCamera = async () => {
     setError(null);
@@ -119,30 +130,17 @@ const Scanner: React.FC = () => {
     'mayonnaise': 'other', 'stock': 'other', 'broth': 'other', 'water': 'other',
   };
   const FORGIVABLE = Object.keys(FORGIVABLE_TYPES);
-  
-  /*
-  const continueToRecipes = async () => {
-    // Merge display items with typed forgivables (hidden in UI but saved with proper types)
-    const merged: FridgeMap = { ...detected };
-    await saveFridgeMap(merged);
-    const maybePush = (router as unknown as { push?: (...args: unknown[]) => void })?.push;
-    if (typeof maybePush === 'function') {
-      try { maybePush('/menu', 'forward'); } catch { router.push('/menu'); }
-    } else {
-      router.push('/menu');
-    }
-  };
-  */
 
 
-  const analyzePhotos = () => async () => {
+  const analyzePhotos = async () => {
     if (photos.length === 0) {
       setError('Please add at least one photo to analyze.');
       return;
     }
     setError(null);
+    setDetecting(true);
 
-    const ingredients: FridgeMap = {};
+  const ingredients: FridgeMap = {};
 
     // helper to register a detected label
     const register = (label: string, confidence?: number) => {
@@ -157,13 +155,14 @@ const Scanner: React.FC = () => {
       }
     };
 
+    console.log('Analyzing photos', photos);
     // send each photo to the inference endpoint and parse predictions
     for (const p of photos) {
       try {
         const response = await fetch('https://serverless.roboflow.com/infer/workflows/snapchef-f8wpm/custom-workflow-2', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ api_key: 'SECRET', inputs: { image: p } }),
+          body: JSON.stringify({ api_key: '2yO2bpp3nP2iai4xoSTK', inputs: { image: p } }),
         });
 
         const result = await response.json();
@@ -188,16 +187,69 @@ const Scanner: React.FC = () => {
       }
     }
 
-    for (const f of FORGIVABLE) {
-      if (!(f in ingredients)) ingredients[f] = FORGIVABLE_TYPES[f];
+    // Build a UI-only detected map that excludes common "forgivable" pantry items
+    const uiDetected: FridgeMap = {};
+    for (const [k, v] of Object.entries(ingredients)) {
+      if (!FORGIVABLE.includes(k)) uiDetected[k] = v;
+    }
+    setDetected(uiDetected);
+    console.log('Detected ingredients (UI)', uiDetected);
+    setDetecting(false);
+  };
+
+  const removeDetected = (name: string) => {
+    setDetected((d) => {
+      const copy = { ...d };
+      delete copy[name];
+      return copy;
+    });
+  };
+
+  const addManualItem = async () => {
+    const raw = (manualName || '').trim().toLowerCase();
+    if (!raw) return;
+    // try to resolve aliases
+    const m = aliasMatch(raw);
+    if (m) {
+      setDetected((d) => ({ ...d, [m.name]: m.type }));
+    } else {
+      setDetected((d) => ({ ...d, [raw]: manualType || 'other' }));
+    }
+    setManualName('');
+  };
+
+  const handleManualNameChange = (e: CustomEvent) => {
+    const v = (e as unknown as { detail?: { value?: string } })?.detail?.value;
+    setManualName(v || '');
+  };
+
+  const handleManualTypeChange = (e: CustomEvent) => {
+    const v = (e as unknown as { detail?: { value?: IngredientType } })?.detail?.value;
+    setManualType(v || 'other');
+  };
+
+  const generateRecipe = async () => {
+    try {
+      const existing = await loadFridgeMap();
+      const merged: FridgeMap = { ...existing, ...detected };
+      // add back forgivable items with proper types
+      for (const f of FORGIVABLE) {
+        if (!(f in merged)) merged[f] = FORGIVABLE_TYPES[f];
+      }
+      await saveFridgeMap(merged);
+      setDetected({});
+      // small success hint - in a real app you'd show a toast
+      console.log('Saved detected items to fridge', merged);
+    } catch (e) {
+      console.error('Failed to save detected items', e);
+      setError('Failed to save detected items.');
     }
 
-    try {
-      await saveFridgeMap(ingredients);
-      console.log('Saved fridge map', ingredients);
-    } catch (e) {
-      console.error('Failed to save fridge map', e);
-      setError('Failed to save detected items.');
+    const maybePush = (router as unknown as { push?: (...args: unknown[]) => void })?.push;
+    if (typeof maybePush === 'function') {
+      try { maybePush('/menu', 'forward'); } catch { router.push('/menu'); }
+    } else {
+      router.push('/menu');
     }
   };
 
@@ -244,11 +296,15 @@ const Scanner: React.FC = () => {
               style={{ display: 'none' }}
               onChange={(e) => handleFiles(e.target.files)}
             />
+            <IonButton
+              color="tertiary"
+              onClick={analyzePhotos}
+              disabled={detecting || photos.length === 0}
+            >
+              {(detecting) ? (<><IonSpinner name="lines" />&nbsp;Analyzing…</>) : 'Analyze Photos'}
+            </IonButton>
           </div>
 
-          <IonButton className="analyze-button" onClick={analyzePhotos()} disabled={photos.length === 0}>
-            Analyze
-          </IonButton>
           {error && <div className="scanner-error">{error}</div>}
 
           {platform === 'web' && (
@@ -283,13 +339,52 @@ const Scanner: React.FC = () => {
                     </div>
                   </IonCol>
                 ))}
-                {photos.length === 0 && (
-                  <IonCol>
-                    <IonLabel>For AI recipe recommendations, please take photos of your fridge!</IonLabel>
-                  </IonCol>
-                )}
               </IonRow>
             </IonGrid>
+          </div>
+
+          {/* Detected items preview and manual add */}
+          <div className="detected-panel" style={{ padding: 12 }}>
+            <h3>Detected Items</h3>
+            {Object.keys(detected).length === 0 ? (
+              <IonText color="medium">No detected items yet. Analyze photos to detect foods.</IonText>
+            ) : (
+              <IonList>
+                {Object.entries(detected).map(([name, type]) => (
+                  <IonItem key={name} lines="inset">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                      <div>
+                        <strong>{name}</strong>
+                        <div style={{ fontSize: 12, color: '#666' }}>{type}</div>
+                      </div>
+                      <div>
+                        <IonButton size="small" color="danger" onClick={() => removeDetected(name)}>Remove</IonButton>
+                      </div>
+                    </div>
+                  </IonItem>
+                ))}
+              </IonList>
+            )}
+
+            <div style={{ marginTop: 12 }}>
+              <h4>Add Manually</h4>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <IonInput placeholder="e.g. spinach" value={manualName} onIonChange={handleManualNameChange} />
+                <IonSelect value={manualType} onIonChange={handleManualTypeChange} interface="popover">
+                  <IonSelectOption value="vegetable">vegetable</IonSelectOption>
+                  <IonSelectOption value="fruit">fruit</IonSelectOption>
+                  <IonSelectOption value="protein">protein</IonSelectOption>
+                  <IonSelectOption value="dairy">dairy</IonSelectOption>
+                  <IonSelectOption value="baking">baking</IonSelectOption>
+                  <IonSelectOption value="other">other</IonSelectOption>
+                </IonSelect>
+                <IonButton onClick={addManualItem}>Add</IonButton>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 12 }}>
+              <IonButton onClick={generateRecipe} disabled={Object.keys(detected).length === 0}>Generate Recipe!</IonButton>
+            </div>
           </div>
         </div>
       </IonContent>
