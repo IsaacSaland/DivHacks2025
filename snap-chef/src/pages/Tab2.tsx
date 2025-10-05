@@ -1,3 +1,4 @@
+// src/pages/Tab2.tsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   IonContent, IonHeader, IonPage, IonTitle, IonToolbar,
@@ -25,50 +26,53 @@ type RecipeDetail = {
 
 const normalize = (s?: string | null) => (s || '').toLowerCase().trim();
 
-const INCOMING_PANTRY_TYPES: Record<string, string> = {
-  chicken: 'protein', broccoli: 'vegetable', milk: 'dairy', fish: 'protein',
-  rice: 'grain', egg: 'protein', tomato: 'vegetable', cheese: 'dairy',
-  pasta: 'grain', beef: 'protein', potato: 'vegetable', yogurt: 'dairy',
-  bread: 'grain', carrot: 'vegetable', pork: 'protein', spinach: 'vegetable',
-  pecan: 'nut', almond: 'nut', walnut: 'nut', chocolate: 'sweet',
-  flour: 'baking', sugar: 'baking',
-};
+// Hidden-but-included basics (not shown as chips, still counted in search)
+const FORGIVABLE = new Set<string>([
+  'salt','pepper','olive oil','vegetable oil','butter','sugar','garlic','onion','paprika',
+  'chili powder','cumin','oregano','basil','thyme','vinegar','soy sauce','ketchup','mustard',
+  'mayonnaise','lemon','lime','water','stock','broth','flour','baking powder','baking soda',
+  'tomato paste','tomato sauce'
+]);
+const isForgivable = (n: string) => FORGIVABLE.has(normalize(n));
 
 const Menu: React.FC = () => {
   const [pantryTypes, setPantryTypes] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    (async () => {
-      const map = await loadFridgeMap();
-      if (!map || Object.keys(map).length === 0) {
-        // fallback if user hasn’t scanned yet
-        setPantryTypes({
-          chicken: 'protein',
-          broccoli: 'vegetable',
-          milk: 'dairy',
-          rice: 'grain',
-          egg: 'protein',
-        });
-      } else {
-        setPantryTypes(map);
-      }
-    })();
-  }, []);
-
-  const [pantryState, setPantryState] = useState<Record<string, TriState>>(
-    Object.fromEntries(Object.keys(pantryTypes).map((name) => [name, 'opt']))
-  );
-
+  const [pantryState, setPantryState] = useState<Record<string, TriState>>({});
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<SearchRow[]>([]);
   const [selected, setSelected] = useState<RecipeDetail | null>(null);
   const [sort, setSort] = useState<SortMode>('match');
 
+  // Load the fridge map from Tab1; no fallback/hardcoding
+  useEffect(() => {
+    (async () => {
+      const map = await loadFridgeMap(); // { ingredient -> type }
+      // normalize keys
+      const norm: Record<string, string> = {};
+      Object.entries(map || {}).forEach(([k, v]) => { norm[normalize(k)] = String(v || 'other'); });
+      setPantryTypes(norm);
+    })();
+  }, []);
+
+  // When pantry list changes, initialize all to Optional
+  useEffect(() => {
+    const next: Record<string, TriState> = {};
+    Object.keys(pantryTypes).forEach((name) => { next[name] = 'opt'; });
+    setPantryState(next);
+  }, [pantryTypes]);
+
   const pantryList = useMemo(
-    () => Object.keys(pantryTypes).map((name) => ({ name, type: pantryTypes[name], state: pantryState[name] })),
+    () => Object.keys(pantryTypes).map((name) => ({ name, type: pantryTypes[name], state: pantryState[name] || 'opt' })),
     [pantryTypes, pantryState]
   );
 
+  // Hide forgivable items in the UI only
+  const visiblePantryList = useMemo(
+    () => pantryList.filter(p => !isForgivable(p.name)),
+    [pantryList]
+  );
+
+  // Build payloads over ALL items (including forgivables)
   const must = useMemo(() => pantryList.filter(p => p.state === 'must').map(p => p.name), [pantryList]);
   const optional = useMemo(() => pantryList.filter(p => p.state === 'opt').map(p => p.name), [pantryList]);
   const exclude = useMemo(() => pantryList.filter(p => p.state === 'exc').map(p => p.name), [pantryList]);
@@ -86,11 +90,17 @@ const Menu: React.FC = () => {
 
   const deb = useRef<number | null>(null);
   useEffect(() => {
+    if (!Object.keys(pantryTypes).length) return;
     if (deb.current) window.clearTimeout(deb.current);
     deb.current = window.setTimeout(() => { runSearch(); }, 200);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pantryState, sort]);
-  useEffect(() => { runSearch(); }, []);
+
+  useEffect(() => {
+    if (!Object.keys(pantryTypes).length) return;
+    runSearch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [Object.keys(pantryTypes).length]);
 
   async function runSearch() {
     setLoading(true);
@@ -102,7 +112,7 @@ const Menu: React.FC = () => {
         body: JSON.stringify({ must, optional, exclude, sort, limit: 50 })
       });
       const data: SearchRow[] = await r.json();
-      setRows(data);
+      setRows(Array.isArray(data) ? data : []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }
@@ -115,7 +125,7 @@ const Menu: React.FC = () => {
     } catch (e) { console.error(e); }
   }
 
-  const sortLabel = sort === 'match' ? 'Sort: Match' : sort === 'time_asc' ? 'Sort: Time ↑' : 'Sort:Time ↓';
+  const sortLabel = sort === 'match' ? 'Sort: Match' : sort === 'time_asc' ? 'Sort: Time ↑' : 'Sort: Time ↓';
 
   return (
     <IonPage>
@@ -130,8 +140,9 @@ const Menu: React.FC = () => {
         <IonHeader collapse="condense"><IonToolbar><IonTitle size="large">Menu</IonTitle></IonToolbar></IonHeader>
 
         <div className="ion-padding" style={{ display: 'grid', gap: 8 }}>
+          {/* Chips for NON-forgivable ingredients only */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {pantryList.map(({ name, type, state }) => {
+            {visiblePantryList.map(({ name, type, state }) => {
               const color = state === 'must' ? 'success' : state === 'exc' ? 'danger' : 'warning';
               const outline = state === 'opt';
               const label = state === 'must' ? 'Must' : state === 'exc' ? 'Exclude' : 'Optional';
@@ -143,13 +154,17 @@ const Menu: React.FC = () => {
                 </IonChip>
               );
             })}
+            {visiblePantryList.length === 0 && (
+              <small style={{ color: 'var(--ion-color-medium)' }}>
+                Nothing to show yet — add items in Scanner (Tab 1). Basics (salt, oil, etc.) are assumed and hidden here.
+              </small>
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'var(--ion-color-medium)' }}>
             <IonIcon icon={informationCircleOutline} />
             <small>
-              Click to cycle: Optional → Must → Exclude → Optional<br></br>
-              You are assumed to have many basic ingredients (salt, sugar, flour, spices, etc.) on hand.
+              Click a chip to cycle: <b>Optional → Must → Exclude → Optional</b>. Basics are hidden but still included in matching.
             </small>
           </div>
         </div>
@@ -180,8 +195,11 @@ const Menu: React.FC = () => {
         <IonModal isOpen={!!selected} onDidDismiss={() => setSelected(null)}>
           <IonHeader>
             <IonToolbar>
-              <IonTitle><a target="_blank" rel="noopener noreferrer" href={`https://www.food.com/recipe/${selected?.name}-${selected?.id}`}>{selected?.name}</a></IonTitle>
-              
+              <IonTitle>
+                <a target="_blank" rel="noopener noreferrer" href={`https://www.food.com/recipe/${selected?.name}-${selected?.id}`}>
+                  {selected?.name}
+                </a>
+              </IonTitle>
               <div slot="end" style={{ paddingRight: 8 }}>
                 <IonIcon icon={closeOutline} onClick={() => setSelected(null)} style={{ fontSize: 22, cursor: 'pointer' }} />
               </div>
