@@ -115,7 +115,7 @@ const Menu: React.FC = () => {
     } catch (e) { console.error(e); }
   }
 
-  const sortLabel = sort === 'match' ? 'Sort: Match' : sort === 'time_asc' ? 'Time ↑' : 'Time ↓';
+  const sortLabel = sort === 'match' ? 'Sort: Match' : sort === 'time_asc' ? 'Sort: Time ↑' : 'Sort:Time ↓';
 
   return (
     <IonPage>
@@ -180,7 +180,8 @@ const Menu: React.FC = () => {
         <IonModal isOpen={!!selected} onDidDismiss={() => setSelected(null)}>
           <IonHeader>
             <IonToolbar>
-              <IonTitle>{selected?.name || 'Recipe'}</IonTitle>
+              <IonTitle><a target="_blank" rel="noopener noreferrer" href={`https://www.food.com/recipe/${selected?.name}-${selected?.id}`}>{selected?.name}</a></IonTitle>
+              
               <div slot="end" style={{ paddingRight: 8 }}>
                 <IonIcon icon={closeOutline} onClick={() => setSelected(null)} style={{ fontSize: 22, cursor: 'pointer' }} />
               </div>
