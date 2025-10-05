@@ -6,7 +6,7 @@
 Download [food.com dataset](https://www.kaggle.com/datasets/shuyangli94/food-com-recipes-and-user-interactions).
 
 
-`py ./buildDB.py`
+`python ./buildDB.py`
 (Creates recipe_db\foodcom.db)
 
 ## Start server
