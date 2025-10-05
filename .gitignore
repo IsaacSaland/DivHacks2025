@@ -1,3 +1,5 @@
 /recipe_db/*.csv
 /recipe_db/*.db
 /recipe_db/*.pkl
+/recipe_db/node_modules/
+.DS_Store
