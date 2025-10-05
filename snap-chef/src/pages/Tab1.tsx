@@ -430,7 +430,7 @@ const Scanner: React.FC = () => {
                 ))}
               {Object.keys(detected).filter(n => !isForgivable(n)).length === 0 && (
                 <small style={{ color: 'var(--ion-color-medium)' }}>
-                  Nothing detected yet. Add manually or try Analyze Photos.
+                  Nothing detected yet. Enter some manually below, or add photos and run analysis.
                 </small>
               )}
             </div>
@@ -438,7 +438,7 @@ const Scanner: React.FC = () => {
             {/* Manual add */}
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <IonInput
-                placeholder="add ingredient (e.g., ground beef, chicken breast)"
+                placeholder="enter ingredient"
                 value={manualName}
                 onIonInput={(e) => setManualName(String(e.detail.value || ''))}
                 style={{ flex: '1 1 220px' }}
@@ -473,7 +473,7 @@ const Scanner: React.FC = () => {
 
             <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
               <IonButton color="success" onClick={continueToRecipes} disabled={Object.keys(detected).length === 0}>
-                Use these ingredients → Tab 2
+                Generate Recipes!
               </IonButton>
             </div>
           </div>
