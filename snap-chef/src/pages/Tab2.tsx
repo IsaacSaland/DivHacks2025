@@ -33,7 +33,7 @@ const INCOMING_PANTRY_TYPES: Record<string, string> = {
   flour: 'baking', sugar: 'baking',
 };
 
-const Tab2: React.FC = () => {
+const Menu: React.FC = () => {
   const [pantryTypes] = useState<Record<string, string>>(
     Object.fromEntries(Object.entries(INCOMING_PANTRY_TYPES).map(([k, v]) => [normalize(k), normalize(v)]))
   );
@@ -195,4 +195,4 @@ const Tab2: React.FC = () => {
   );
 };
 
-export default Tab2;
+export default Menu;
