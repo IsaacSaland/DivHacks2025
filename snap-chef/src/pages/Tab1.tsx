@@ -159,7 +159,7 @@ const Scanner: React.FC = () => {
     // send each photo to the inference endpoint and parse predictions
     for (const p of photos) {
       try {
-        const response = await fetch('https://serverless.roboflow.com/infer/workflows/snapchef-f8wpm/custom-workflow-2', {
+        const response = await fetch('https://serverless.roboflow.com/infer/workflows/snapchef-f8wpm/custom-workflow-3', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ api_key: 'REDACTED-SECRET', inputs: { image: p } }),
