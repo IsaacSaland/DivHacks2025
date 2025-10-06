@@ -162,7 +162,7 @@ const Scanner: React.FC = () => {
         const response = await fetch('https://serverless.roboflow.com/infer/workflows/snapchef-f8wpm/custom-workflow-2', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ api_key: '2yO2bpp3nP2iai4xoSTK', inputs: { image: p } }),
+          body: JSON.stringify({ api_key: 'REDACTED-SECRET', inputs: { image: p } }),
         });
 
         const result = await response.json();
